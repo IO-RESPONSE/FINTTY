@@ -17,6 +17,13 @@ session time remains. Before exit, always leave exact continuation evidence in
 Only when every Definition of Done criterion in `ANTIGRAVITY_TASK.md` has
 verified evidence, create `.antigravity-complete` containing the timestamp,
 final commit hash, test commands and results, and acceptance-report path.
+Before creating it, all of these commands must actually exit zero in the same
+run: `./test.sh`, `./check.sh`, `git diff --check`, and
+`automation/verify-completion.sh --pre-marker`. Do not report a Pascal build as
+verified when the compiler is unavailable. A failing test, an unavailable
+required build, or inability to create a cohesive commit is unfinished work,
+not completion. The working tree must be clean after the final state/report
+commit. Never write claims that contradict command output.
 Creating that marker is a terminal condition: finish the current state update
 and exit immediately. The seven-day deadline is only a maximum safety limit,
 not a required work duration.

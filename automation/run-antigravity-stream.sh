@@ -12,6 +12,7 @@ COMPLETE_FILE="$REPO/.antigravity-complete"
 DEADLINE_FILE="$REPO/.antigravity-deadline"
 BACKOFF_FILE="$REPO/.antigravity-backoff"
 STATUS_FILE="$REPO/.antigravity-runner-status"
+VERIFY_SCRIPT="$REPO/automation/verify-completion.sh"
 
 SESSION_SECONDS=${SESSION_SECONDS:-14400}
 PRINT_TIMEOUT=${PRINT_TIMEOUT:-230m}
@@ -61,6 +62,21 @@ matches() {
     grep -Eiq "$pattern" "$file"
 }
 
+completion_is_valid() {
+    [[ -e "$COMPLETE_FILE" ]] || return 1
+    if [[ ! -x "$VERIFY_SCRIPT" ]]; then
+        write_status verification-failed "completion verifier missing or not executable"
+        return 1
+    fi
+    if "$VERIFY_SCRIPT" >>"$LOG_DIR/completion-verification.log" 2>&1; then
+        return 0
+    fi
+    printf '%s invalid completion marker; continuing work\n' "$(date --iso-8601=seconds)" \
+        >>"$LOG_DIR/runner-error.log"
+    write_status verification-failed "completion marker rejected; see completion-verification.log"
+    return 1
+}
+
 next_backoff() {
     local kind=$1 initial=$2 maximum=$3 stored_kind= stored= next
     if [[ -r "$BACKOFF_FILE" ]]; then
@@ -93,7 +109,10 @@ cd "$REPO" || exit 1
 
 while true; do
     [[ ! -e "$STOP_FILE" ]] || { write_status paused "stop file present"; exit 0; }
-    [[ ! -e "$COMPLETE_FILE" ]] || { write_status complete "completion marker present"; exit 0; }
+    if [[ -e "$COMPLETE_FILE" ]]; then
+        completion_is_valid && { write_status complete "verified completion marker present"; exit 0; }
+        mv "$COMPLETE_FILE" "$LOG_DIR/rejected-completion-$(date '+%Y%m%d-%H%M%S').txt"
+    fi
     if deadline_reached; then
         write_status expired "deadline reached"
         touch "$STOP_FILE"
