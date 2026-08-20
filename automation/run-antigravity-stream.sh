@@ -106,7 +106,8 @@ while true; do
     write_status running "session=$run_id"
 
     timeout --signal=TERM --kill-after=2m "${SESSION_SECONDS}s" \
-        "$AGY" --new-project --sandbox --mode accept-edits \
+        "$AGY" --new-project --sandbox --dangerously-skip-permissions \
+        --mode accept-edits \
         --output-format json --print-timeout "$PRINT_TIMEOUT" \
         --print "$(<"$PROMPT_FILE")" >>"$log_file" 2>&1
     rc=$?

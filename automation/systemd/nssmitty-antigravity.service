@@ -13,6 +13,17 @@ TimeoutStopSec=120
 KillMode=control-group
 NoNewPrivileges=yes
 PrivateTmp=yes
+PrivateDevices=yes
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/home/nytr/nssmitty /home/nytr/.gemini/antigravity-cli
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+UMask=0077
 
 [Install]
 WantedBy=default.target

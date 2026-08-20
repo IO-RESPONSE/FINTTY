@@ -37,6 +37,11 @@ The worker launches every headless turn with `--new-project` so the workspace is
 the NSMITTY repository rather than the broader trusted home directory. Progress
 continues through Git history and the tracked MVP state files.
 
+Headless command approvals use `--dangerously-skip-permissions`, but the worker
+is contained by both AGY's sandbox and systemd hardening: privilege elevation is
+blocked, the home directory is read-only, and writes are limited to this
+repository and AGY's own state directory. Do not remove those unit restrictions.
+
 ## Start a seven-day run
 
 Review the repository, prompt, permissions, and RHEL 9 test environment first.
