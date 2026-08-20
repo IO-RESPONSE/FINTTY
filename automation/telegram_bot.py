@@ -175,7 +175,7 @@ class TelegramBot:
             "NSMITTY AGY 상태\n"
             f"service: {unit or 'unknown'} (rc={rc})\n"
             f"paused: {'yes' if paused else 'no'}\n"
-            f"deadline: {deadline}\n\n{runner}"
+            f"maximum deadline: {deadline}\n\n{runner}"
         )
 
     def progress(self) -> str:

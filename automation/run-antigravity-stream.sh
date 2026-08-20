@@ -116,9 +116,9 @@ while true; do
 
     [[ ! -e "$STOP_FILE" && ! -e "$COMPLETE_FILE" ]] || continue
 
-    if matches '"status"[[:space:]]*:[[:space:]]*"ERROR"' "$log_file"; then
-        printf '%s agy-json-error rc=%s log=%s\n' "$(date --iso-8601=seconds)" "$rc" "$log_file" >>"$LOG_DIR/runner-error.log"
-        interruptible_sleep 900 'AGY reported ERROR' || continue
+    if matches '"status"[[:space:]]*:[[:space:]]*"(ERROR|CANCELED)"' "$log_file"; then
+        printf '%s agy-unsuccessful-status rc=%s log=%s\n' "$(date --iso-8601=seconds)" "$rc" "$log_file" >>"$LOG_DIR/runner-error.log"
+        interruptible_sleep 900 'AGY reported ERROR or CANCELED' || continue
         continue
     fi
 

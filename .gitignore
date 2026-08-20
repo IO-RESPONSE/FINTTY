@@ -6,5 +6,6 @@
 .antigravity-runs/
 .telegram-control-audit.log
 .telegram-update-offset
+.agy-write-smoke
 __pycache__/
 *.py[cod]

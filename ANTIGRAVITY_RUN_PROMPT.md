@@ -1,5 +1,3 @@
-/goal
-
 Work autonomously on the RHEL 9 NSMITTY MVP in the current repository.
 
 Read `ANTIGRAVITY_TASK.md` completely and obey it. Then read `MVP_STATE.md`,
@@ -19,3 +17,6 @@ session time remains. Before exit, always leave exact continuation evidence in
 Only when every Definition of Done criterion in `ANTIGRAVITY_TASK.md` has
 verified evidence, create `.antigravity-complete` containing the timestamp,
 final commit hash, test commands and results, and acceptance-report path.
+Creating that marker is a terminal condition: finish the current state update
+and exit immediately. The seven-day deadline is only a maximum safety limit,
+not a required work duration.

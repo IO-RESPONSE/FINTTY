@@ -49,6 +49,8 @@ systemctl --user start nssmitty-antigravity.service
 ```
 
 Do not create the deadline until the final smoke test has passed.
+The deadline is a maximum safety limit. A verified completion marker stops the
+worker immediately, even when substantial time remains.
 
 ## Local verification
 

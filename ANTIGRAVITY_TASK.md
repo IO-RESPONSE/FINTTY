@@ -5,6 +5,8 @@
 Transform this GPL-3.0 Free Pascal/Lazarus prototype into a safe, testable
 SMITTY-style TUI MVP for RHEL 9. Continue autonomously until the definition of
 done is verified, the deadline expires, or a genuine external blocker remains.
+Stop immediately after verified completion; seven days is a maximum safety
+limit and must never be treated as a required duration or a reason for busywork.
 
 ## Scope
 
