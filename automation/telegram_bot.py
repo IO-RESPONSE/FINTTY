@@ -38,6 +38,29 @@ CONTROL_ACTIONS = {
     "restart": "AGY 작업기와 하위 프로세스를 다시 시작합니다.",
 }
 
+MAIN_KEYBOARD: dict[str, object] = {
+    "keyboard": [
+        [{"text": "📍 상태"}, {"text": "📊 진행률"}],
+        [{"text": "⚠️ 오류"}, {"text": "🧾 로그"}],
+        [{"text": "⏸ 일시정지"}, {"text": "▶️ 재개"}],
+        [{"text": "🔄 재시작"}, {"text": "❓ 도움말"}],
+    ],
+    "resize_keyboard": True,
+    "is_persistent": True,
+    "input_field_placeholder": "FINTTY 관리 메뉴",
+}
+
+BUTTON_COMMANDS = {
+    "📍 상태": "/status",
+    "📊 진행률": "/progress",
+    "⚠️ 오류": "/errors",
+    "🧾 로그": "/log",
+    "⏸ 일시정지": "/pause",
+    "▶️ 재개": "/resume",
+    "🔄 재시작": "/restart",
+    "❓ 도움말": "/help",
+}
+
 
 def redact_text(text: str) -> str:
     patterns = (
@@ -108,6 +131,15 @@ def read_fields(path: Path) -> dict[str, str]:
 def shorten(text: str, limit: int = 180) -> str:
     text = re.sub(r"\s+", " ", text).strip()
     return text if len(text) <= limit else text[: limit - 1].rstrip() + "…"
+
+
+def checklist_progress(path: Path) -> tuple[int, int]:
+    try:
+        text = path.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return 0, 0
+    marks = re.findall(r"^\s*[-*]\s+\[([ xX])\]", text, re.MULTILINE)
+    return sum(mark.lower() == "x" for mark in marks), len(marks)
 
 
 @dataclass
@@ -201,36 +233,37 @@ class TelegramBot:
         state = runner_fields.get("state", "unknown")
         if paused:
             icon, title = "⏸", "일시정지"
-        elif rc == 0 and unit == "active" and state == "running":
-            icon, title = "🟢", "작업 중"
+        elif rc == 0 and unit == "active" and state in {"running", "backoff"}:
+            icon, title = "🟢", "정상"
         elif state == "complete":
             icon, title = "✅", "완료"
         else:
-            icon, title = "🟠", state
+            icon, title = "🔴", "비정상"
+        activity = {
+            "running": "작업 중",
+            "backoff": "오류 후 자동 재시도 대기",
+            "complete": "검증 완료",
+            "paused": "사용자 요청으로 정지",
+        }.get(state, state)
         return (
-            f"{icon} FINTTY · {title}\n\n"
-            f"현재 작업: {shorten(state_fields.get('active task', '확인 중'), 130)}\n"
-            f"단계: {shorten(state_fields.get('milestone', '확인 중'), 100)}\n"
-            f"검증: {shorten(state_fields.get('tests passing', '기록 없음'), 100)}\n"
+            f"{icon} 상태: {title}\n"
+            f"동작: {activity}\n"
             f"남은 시간: {deadline}\n"
-            f"최근 갱신: {runner_fields.get('updated_at', '기록 없음')}\n\n"
-            "상세: /progress  오류: /errors  원문: /log"
+            f"갱신: {runner_fields.get('updated_at', '기록 없음')}"
         )
 
     def progress(self) -> str:
         fields = read_fields(REPO / "MVP_STATE.md")
-        _, changed = run_fixed(["git", "status", "--porcelain"], timeout=5)
-        changed_count = len(changed.splitlines()) if changed else 0
-        _, commits = run_fixed(["git", "log", "--oneline", "-3"], timeout=5)
+        completed, total = checklist_progress(REPO / "MVP_BACKLOG.md")
+        percent = round(completed * 100 / total) if total else 0
+        failing = fields.get("tests failing", "없음")
+        verification = "통과" if failing.lower() in {"none", "없음"} else "검증 중"
         return (
-            "📊 FINTTY 진행 요약\n\n"
-            f"상태: {shorten(fields.get('status', '기록 없음'))}\n"
-            f"단계: {shorten(fields.get('milestone', '기록 없음'))}\n"
-            f"성공: {shorten(fields.get('tests passing', '기록 없음'))}\n"
-            f"실패: {shorten(fields.get('tests failing', '없음'), 300)}\n"
-            f"다음: {shorten(fields.get('next', '기록 없음'), 300)}\n"
-            f"미커밋 파일: {changed_count}개\n\n"
-            f"최근 커밋\n{commits or '없음'}"
+            "📊 진행률\n\n"
+            f"{completed}/{total} ({percent}%)\n"
+            f"검증: {verification}\n"
+            f"현재: {shorten(fields.get('active task', '확인 중'), 150)}\n"
+            f"다음: {shorten(fields.get('next', '기록 없음'), 180)}"
         )
 
     def recent_log(self) -> str:
@@ -310,13 +343,14 @@ class TelegramBot:
         self.send(f"{pending.action}: {result}")
 
     def handle_message(self, message: dict[str, object]) -> None:
-        text = str(message.get("text", "")).strip().split("@", 1)[0]
+        raw_text = str(message.get("text", "")).strip()
+        text = BUTTON_COMMANDS.get(raw_text, raw_text).split("@", 1)[0]
         command = text.split(maxsplit=1)[0].lower()
         if command in {"/start", "/help"}:
             self.send(
-                "NSMITTY AGY 관리 봇\n\n"
-                "조회: /status /progress /log /errors\n"
-                "제어(2단계 확인): /pause /resume /stop /restart"
+                "FINTTY 관리 메뉴입니다. 아래 버튼을 누르세요.\n"
+                "제어 기능은 확인 버튼을 한 번 더 눌러야 실행됩니다.",
+                MAIN_KEYBOARD,
             )
         elif command == "/status":
             self.send(self.status())
@@ -344,7 +378,7 @@ class TelegramBot:
             self.handle_message(message)
 
     def run(self) -> None:
-        self.send("NSMITTY Telegram 관리 봇이 시작되었습니다. /help")
+        self.send("FINTTY 관리 봇이 시작되었습니다.", MAIN_KEYBOARD)
         backoff = 5
         while True:
             try:

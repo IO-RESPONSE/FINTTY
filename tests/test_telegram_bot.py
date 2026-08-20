@@ -67,6 +67,17 @@ class TelegramBotHelpersTest(unittest.TestCase):
         self.assertEqual(telegram_bot.shorten("a   b"), "a b")
         self.assertEqual(telegram_bot.shorten("abcdef", 4), "abc…")
 
+    def test_checklist_progress(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "backlog.md"
+            path.write_text("- [x] done\n- [ ] todo\n- [X] done too\n")
+            self.assertEqual(telegram_bot.checklist_progress(path), (2, 3))
+
+    def test_button_commands_are_fixed(self):
+        self.assertEqual(telegram_bot.BUTTON_COMMANDS["📍 상태"], "/status")
+        self.assertEqual(telegram_bot.BUTTON_COMMANDS["▶️ 재개"], "/resume")
+        self.assertTrue(telegram_bot.MAIN_KEYBOARD["is_persistent"])
+
 
 if __name__ == "__main__":
     unittest.main()
