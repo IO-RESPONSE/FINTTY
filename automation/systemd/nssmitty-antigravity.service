@@ -1,0 +1,18 @@
+[Unit]
+Description=Continuous Antigravity worker for NSMITTY MVP
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/nytr/nssmitty
+ExecStart=/home/nytr/nssmitty/automation/run-antigravity-stream.sh
+Restart=on-failure
+RestartSec=60
+TimeoutStopSec=120
+KillMode=control-group
+NoNewPrivileges=yes
+PrivateTmp=yes
+
+[Install]
+WantedBy=default.target

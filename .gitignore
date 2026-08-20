@@ -1,0 +1,10 @@
+.antigravity-backoff
+.antigravity-complete
+.antigravity-deadline
+.antigravity-runner-status
+.antigravity-stop
+.antigravity-runs/
+.telegram-control-audit.log
+.telegram-update-offset
+__pycache__/
+*.py[cod]

@@ -1,0 +1,18 @@
+[Unit]
+Description=Telegram control bot for NSMITTY AGY worker
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/nytr/nssmitty
+ExecStart=/usr/bin/python3 /home/nytr/nssmitty/automation/telegram_bot.py
+Restart=always
+RestartSec=15
+TimeoutStopSec=30
+KillMode=control-group
+NoNewPrivileges=yes
+PrivateTmp=yes
+
+[Install]
+WantedBy=default.target
