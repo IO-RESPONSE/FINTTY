@@ -2,6 +2,7 @@ import importlib.util
 import sys
 import tempfile
 import unittest
+from unittest import mock
 from pathlib import Path
 
 MODULE_PATH = Path(__file__).parents[1] / "automation" / "telegram_bot.py"
@@ -77,6 +78,18 @@ class TelegramBotHelpersTest(unittest.TestCase):
         self.assertEqual(telegram_bot.BUTTON_COMMANDS["📍 상태"], "/status")
         self.assertEqual(telegram_bot.BUTTON_COMMANDS["▶️ 재개"], "/resume")
         self.assertTrue(telegram_bot.MAIN_KEYBOARD["is_persistent"])
+
+    def test_resume_restarts_worker_to_interrupt_backoff(self):
+        bot = telegram_bot.TelegramBot.__new__(telegram_bot.TelegramBot)
+        pending = telegram_bot.PendingAction("resume", 1, 1, 999999)
+        with mock.patch.object(telegram_bot.Path, "unlink"), mock.patch.object(
+            telegram_bot, "run_fixed", return_value=(0, "")
+        ) as run:
+            ok, _ = bot.execute_control(pending)
+        self.assertTrue(ok)
+        run.assert_called_once_with(
+            ["systemctl", "--user", "restart", telegram_bot.WORKER_SERVICE], 30
+        )
 
 
 if __name__ == "__main__":

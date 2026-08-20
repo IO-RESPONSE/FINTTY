@@ -310,7 +310,12 @@ class TelegramBot:
             )
         elif action == "resume":
             STOP_FILE.unlink(missing_ok=True)
-            rc, output = run_fixed(["systemctl", "--user", "start", WORKER_SERVICE])
+            # The runner remains active while sleeping in rate-limit/error
+            # backoff. `start` is then a no-op, so restart it to interrupt the
+            # sleep and launch a fresh AGY session immediately.
+            rc, output = run_fixed(
+                ["systemctl", "--user", "restart", WORKER_SERVICE], 30
+            )
         elif action == "stop":
             STOP_FILE.touch(mode=0o600, exist_ok=True)
             rc, output = run_fixed(["systemctl", "--user", "stop", WORKER_SERVICE], 30)
