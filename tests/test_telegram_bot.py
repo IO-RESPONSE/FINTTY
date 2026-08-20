@@ -56,6 +56,17 @@ class TelegramBotHelpersTest(unittest.TestCase):
             {"pause", "resume", "stop", "restart"},
         )
 
+    def test_read_fields_and_shorten(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "state.md"
+            path.write_text("# State\n\n- Status: running\n- Next: fix tests\n")
+            self.assertEqual(
+                telegram_bot.read_fields(path),
+                {"status": "running", "next": "fix tests"},
+            )
+        self.assertEqual(telegram_bot.shorten("a   b"), "a b")
+        self.assertEqual(telegram_bot.shorten("abcdef", 4), "abc…")
+
 
 if __name__ == "__main__":
     unittest.main()

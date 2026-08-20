@@ -91,6 +91,25 @@ def run_fixed(args: list[str], timeout: int = 15) -> tuple[int, str]:
         return 1, str(exc)
 
 
+def read_fields(path: Path) -> dict[str, str]:
+    """Read the short `- Name: value` fields used by MVP_STATE.md."""
+    fields: dict[str, str] = {}
+    try:
+        lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
+    except OSError:
+        return fields
+    for line in lines:
+        match = re.match(r"^- ([^:]+):\s*(.*)$", line)
+        if match:
+            fields[match.group(1).strip().lower()] = match.group(2).strip()
+    return fields
+
+
+def shorten(text: str, limit: int = 180) -> str:
+    text = re.sub(r"\s+", " ", text).strip()
+    return text if len(text) <= limit else text[: limit - 1].rstrip() + "…"
+
+
 @dataclass
 class PendingAction:
     action: str
@@ -163,7 +182,15 @@ class TelegramBot:
         rc, unit = run_fixed(
             ["systemctl", "--user", "is-active", WORKER_SERVICE], timeout=5
         )
-        runner = tail_text(STATUS_FILE, lines=20, max_chars=1200)
+        runner_fields: dict[str, str] = {}
+        try:
+            for line in STATUS_FILE.read_text(encoding="utf-8").splitlines():
+                key, separator, value = line.partition("=")
+                if separator:
+                    runner_fields[key] = value
+        except OSError:
+            pass
+        state_fields = read_fields(REPO / "MVP_STATE.md")
         paused = STOP_FILE.exists()
         deadline = "설정되지 않음"
         try:
@@ -171,26 +198,55 @@ class TelegramBot:
             deadline = "만료" if seconds <= 0 else f"{seconds // 3600}시간 {seconds % 3600 // 60}분 남음"
         except (OSError, ValueError):
             pass
+        state = runner_fields.get("state", "unknown")
+        if paused:
+            icon, title = "⏸", "일시정지"
+        elif rc == 0 and unit == "active" and state == "running":
+            icon, title = "🟢", "작업 중"
+        elif state == "complete":
+            icon, title = "✅", "완료"
+        else:
+            icon, title = "🟠", state
         return (
-            "NSMITTY AGY 상태\n"
-            f"service: {unit or 'unknown'} (rc={rc})\n"
-            f"paused: {'yes' if paused else 'no'}\n"
-            f"maximum deadline: {deadline}\n\n{runner}"
+            f"{icon} FINTTY · {title}\n\n"
+            f"현재 작업: {shorten(state_fields.get('active task', '확인 중'), 130)}\n"
+            f"단계: {shorten(state_fields.get('milestone', '확인 중'), 100)}\n"
+            f"검증: {shorten(state_fields.get('tests passing', '기록 없음'), 100)}\n"
+            f"남은 시간: {deadline}\n"
+            f"최근 갱신: {runner_fields.get('updated_at', '기록 없음')}\n\n"
+            "상세: /progress  오류: /errors  원문: /log"
         )
 
     def progress(self) -> str:
-        state = tail_text(REPO / "MVP_STATE.md", lines=80, max_chars=2700)
-        _, commits = run_fixed(["git", "log", "--oneline", "-5"], timeout=5)
-        return f"MVP 진행 상태\n\n{state}\n\n최근 commit\n{commits or '없음'}"
+        fields = read_fields(REPO / "MVP_STATE.md")
+        _, changed = run_fixed(["git", "status", "--porcelain"], timeout=5)
+        changed_count = len(changed.splitlines()) if changed else 0
+        _, commits = run_fixed(["git", "log", "--oneline", "-3"], timeout=5)
+        return (
+            "📊 FINTTY 진행 요약\n\n"
+            f"상태: {shorten(fields.get('status', '기록 없음'))}\n"
+            f"단계: {shorten(fields.get('milestone', '기록 없음'))}\n"
+            f"성공: {shorten(fields.get('tests passing', '기록 없음'))}\n"
+            f"실패: {shorten(fields.get('tests failing', '없음'), 300)}\n"
+            f"다음: {shorten(fields.get('next', '기록 없음'), 300)}\n"
+            f"미커밋 파일: {changed_count}개\n\n"
+            f"최근 커밋\n{commits or '없음'}"
+        )
 
     def recent_log(self) -> str:
         logs = sorted(LOG_DIR.glob("*.log"), key=lambda item: item.stat().st_mtime)
         if not logs:
             return "AGY 실행 로그가 아직 없습니다."
-        return f"최근 로그: {logs[-1].name}\n\n{tail_text(logs[-1])}"
+        return (
+            f"🧾 원문 로그 · {logs[-1].name}\n"
+            "(진단용이므로 내용이 복잡할 수 있습니다)\n\n"
+            f"{tail_text(logs[-1], lines=12, max_chars=1800)}"
+        )
 
     def errors(self) -> str:
-        return "최근 runner 오류\n\n" + tail_text(LOG_DIR / "runner-error.log")
+        return "⚠️ 최근 오류 (최대 8줄)\n\n" + tail_text(
+            LOG_DIR / "runner-error.log", lines=8, max_chars=1800
+        )
 
     def request_control(self, action: str) -> None:
         now = time.monotonic()
